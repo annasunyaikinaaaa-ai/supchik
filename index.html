@@ -1,0 +1,1194 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Супчик">
+<meta name="theme-color" content="#F4F4F4">
+<title>Супчик</title>
+<!-- новое имя файла, чтобы айфон не взял старую иконку из памяти -->
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+<link rel="manifest" href="manifest.json">
+<!-- шрифты лежат рядом с сайтом, чтобы не зависеть от Google Fonts -->
+<link href="fonts/fonts.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F4F4;
+    --card: #FFFFFF;
+    --ink: #141414;
+    --muted: #666666;
+    --line: #E2E2E2;
+    --accent: #FFD400;
+    --home: #FF7A5C;
+    --asia: #6CD48A;
+    --east: #5CC8FF;
+    --euro: #B79CFF;
+    --own: #E2E2E2;
+    --display: "Dela Gothic One", "Arial Black", sans-serif;
+    --text: "Onest", -apple-system, "Helvetica Neue", sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--text); font-size: 16px; line-height: 24px; }
+  body { min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; }
+  button { border: 0; background: none; cursor: pointer; }
+
+  .app { overflow-x: clip; max-width: 440px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 80px); min-height: 100vh; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* типографика */
+  .display-xl { font-family: var(--display); font-size: 128px; line-height: 128px; letter-spacing: -4px; }
+  .display-l { font-family: var(--display); font-size: 40px; line-height: 44px; }
+  .display-m { font-family: var(--display); font-size: 32px; line-height: 40px; }
+  .h3 { font-size: 20px; line-height: 28px; font-weight: 700; }
+  .caption { font-size: 12px; line-height: 16px; color: var(--muted); }
+  .muted { color: var(--muted); }
+
+  /* Сегодня */
+  .today-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; white-space: nowrap; }
+  #s-today.active { display: flex; flex-direction: column; min-height: calc(100dvh - 104px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  /* большая цветная карточка: жёлтая до супа, цвета категории после */
+  .today-card { --hb: 40px; --hs: 420px; position: relative; overflow: hidden; flex: 1; min-height: 320px; margin-top: 24px; padding: 16px 16px 8px; border-radius: 24px; background: linear-gradient(180deg, #FFD400 0%, #FFF5C6 100%); display: flex; flex-direction: column; }
+  .today-card.has-eaten { --hb: 136px; --hs: 340px; padding-bottom: 88px; }
+  .today-phrase { position: relative; z-index: 0; font-size: 32px; line-height: 40px; }
+  .today-phrase.big { font-size: 40px; line-height: 44px; }
+  /* суп всегда одного размера; на длинной фразе может залезть на текст, это нормально */
+  .hero { position: absolute; z-index: 1; left: 50%; bottom: var(--hb); width: var(--hs); height: var(--hs); margin-left: calc(var(--hs) / -2); pointer-events: none; }
+  .has-eaten .hero { pointer-events: auto; cursor: pointer; }
+  .hero img { width: 100%; height: 100%; object-fit: contain; }
+  .hero.pop img { animation: pop 400ms cubic-bezier(.3,1.6,.5,1); }
+  /* облачко всегда над краем тарелки, не зависит от длины фразы */
+  .bubble { position: absolute; z-index: 3; left: 16px; bottom: calc(var(--hb) + var(--hs) * 0.76); background: var(--card); border-radius: 12px; padding: 16px; font-weight: 700; font-size: 20px; line-height: 28px; text-align: left; }
+  .bubble::before, .bubble::after { content: ""; position: absolute; border-radius: 50%; background: var(--card); }
+  .bubble::before { width: 20px; height: 20px; left: 32px; top: calc(100% + 8px); }
+  .bubble::after { width: 16px; height: 16px; left: 48px; top: calc(100% + 32px); }
+  .bubble:active { transform: scale(0.96); }
+  .streak { position: relative; z-index: 2; margin-top: auto; align-self: center; pointer-events: none; display: flex; align-items: flex-end; gap: 4px; }
+  .streak-label { padding-bottom: 16px; font-weight: 500; white-space: nowrap; }
+  /* трёхзначная серия: цифра поменьше, чтобы подпись влезла в одну строку */
+  .streak .display-xl.long { font-size: 96px; line-height: 96px; letter-spacing: -4px; }
+  .streak .display-xl.long + .streak-label { padding-bottom: 8px; }
+  .eaten { position: relative; z-index: 4; margin-top: -88px; display: flex; gap: 16px; align-items: center; background: var(--card); border-radius: 16px; padding: 20px 16px; }
+  .eaten .h3 { margin-top: 4px; }
+  .link { color: var(--muted); text-decoration: underline; text-underline-offset: 4px; font-size: 16px; line-height: 24px; padding: 8px 0; }
+  .main-btn { width: 100%; height: 64px; border-radius: 16px; background: var(--accent); font-weight: 700; font-size: 20px; line-height: 28px; }
+  .main-btn:active { transform: scale(0.96); }
+  .today-actions { margin-top: 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  #eat-btn { background: var(--ink); color: #FFFFFF; }
+  .bounce { animation: bounce 480ms cubic-bezier(.3,1.6,.5,1); }
+  @keyframes bounce { 0% { transform: scale(1); } 40% { transform: scale(0.92); } 100% { transform: scale(1); } }
+
+  /* плашка подарка: ярко-розовая, такого цвета больше нигде нет. Чёрный текст на ней 6,9:1 */
+  .gift-card { margin-top: 32px; width: 100%; display: flex; align-items: center; gap: 16px; background: linear-gradient(180deg, #FF4FA3 0%, #FFABD3 100%); color: var(--ink); border-radius: 24px; padding: 16px; text-align: left; }
+  .gift-card .caption { color: var(--ink); }
+  .backup-card { margin-top: 8px; width: 100%; display: flex; align-items: center; gap: 12px; background: var(--card); color: var(--ink); border-radius: 16px; padding: 12px 16px; text-align: left; }
+  .backup-card .caption { color: var(--muted); display: block; margin-top: 4px; }
+  /* плашка жизни: как подарок, только меньше и спокойнее */
+  .life-card { margin-top: 8px; width: 100%; display: flex; align-items: center; gap: 12px; background: var(--card); color: var(--ink); border-radius: 16px; padding: 12px 16px; text-align: left; box-shadow: inset 0 0 0 2px #FF4FA3; }
+  .life-card .caption { color: var(--muted); }
+  .heart { width: 40px; height: 40px; object-fit: contain; flex: none; }
+  .heart.empty { filter: grayscale(1); opacity: 0.32; }
+  .heart.big { width: 160px; height: 160px; }
+  .lives-box { background: var(--card); border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .lives-head { display: flex; align-items: center; gap: 12px; }
+  .lives { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* персонаж-заглушка */
+  .char { flex: none; border-radius: 16px; display: grid; place-items: center; }
+  .char svg { width: 72%; height: 72%; }
+  .char img { width: 96%; height: 96%; object-fit: contain; }
+  .char-64 { width: 64px; height: 64px; }
+  .char-40 { width: 40px; height: 40px; border-radius: 12px; }
+  .char-128 { width: 128px; height: 128px; border-radius: 24px; }
+
+  /* Супостат */
+  .page-title { margin-bottom: 24px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--card); border-radius: 24px; padding: 16px; }
+  .stat.wide { grid-column: span 2; display: flex; justify-content: space-between; align-items: flex-end; padding: 24px; }
+  .stat .num { font-family: var(--display); font-size: 48px; line-height: 48px; margin-top: 8px; }
+  .stat.wide .num { font-size: 80px; line-height: 80px; }
+  .record { text-align: right; }
+
+  .cal { margin-top: 8px; background: var(--card); border-radius: 24px; padding: 16px; }
+  .cal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .cal-nav { width: 40px; height: 40px; border-radius: 12px; background: var(--bg); display: grid; place-items: center; }
+  .cal-nav:disabled { opacity: 0.32; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-wd { text-align: center; font-size: 12px; line-height: 16px; color: var(--muted); padding-bottom: 4px; }
+  .cal-day { aspect-ratio: 1; border-radius: 12px; background: var(--bg); font-size: 12px; line-height: 16px; font-weight: 500; display: grid; place-items: center; }
+  .cal-day.future { background: transparent; color: #BDBDBD; }
+  .cal-day.today { box-shadow: inset 0 0 0 2px var(--ink); }
+  /* день, который спасла жизнь */
+  .cal-day.frozen { background: transparent; box-shadow: inset 0 0 0 2px #FF4FA3; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; color: var(--muted); }
+  .legend i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+
+  /* База супоеда */
+  .base-sub { margin-top: -16px; margin-bottom: 24px; }
+  .year-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: var(--card); border-radius: 24px; padding: 8px; }
+  .year-nav .cal-nav { background: var(--bg); }
+  .totals { margin-bottom: 8px; }
+  .top-soup { display: flex; gap: 16px; align-items: flex-end; background: var(--card); border-radius: 24px; padding: 16px; }
+  .top-soup .num { font-family: var(--display); font-size: 64px; line-height: 64px; }
+  .rating { margin-top: 8px; background: var(--card); border-radius: 24px; padding: 8px 16px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row-name { flex: 1; font-weight: 500; }
+  .row-count { font-family: var(--display); font-size: 20px; line-height: 28px; }
+  .section-title { margin: 32px 0 12px; }
+  .gifts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .gift-slot { min-height: 120px; border-radius: 16px; background: var(--card); padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; text-align: left; }
+  .gift-slot .t { font-weight: 700; font-size: 16px; line-height: 20px; }
+  .gift-slot.locked { background: transparent; border: 2px dashed #BDBDBD; }
+  .gift-slot.ready { background: linear-gradient(180deg, #FF4FA3 0%, #FFABD3 100%); color: var(--ink); }
+  .gift-slot .num { font-family: var(--display); font-size: 24px; line-height: 28px; }
+  .gift-slot.opened { background: linear-gradient(180deg, #FFD400 0%, #FFF5C6 100%); }
+  .gift-slot.opened .caption { color: var(--ink); }
+  .coupon { margin: 24px 0; padding: 24px; border: 2px dashed var(--ink); border-radius: 24px; background: var(--accent); display: flex; flex-direction: column; gap: 16px; text-align: left; }
+  .coupon .caption { color: var(--ink); }
+  .coupon .display-m { font-size: 24px; line-height: 32px; }
+  .meme-ph { background: var(--line); border-radius: 16px; display: grid; place-items: center; text-align: center; color: var(--muted); font-size: 12px; line-height: 16px; padding: 8px; flex: 1; margin-bottom: 8px; }
+  .backup { display: flex; gap: 8px; }
+  .sec-btn { flex: 1; height: 48px; border-radius: 16px; background: var(--card); font-weight: 500; }
+  .empty { background: var(--card); border-radius: 24px; padding: 24px; }
+
+  /* нижняя панель */
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 10; }
+  .tabbar-in { max-width: 440px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .tab { height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; line-height: 16px; color: var(--muted); font-weight: 500; }
+  .tab svg { width: 24px; height: 24px; }
+  .tab.active { color: var(--ink); }
+
+  /* шторка */
+  .overlay { position: fixed; inset: 0; background: rgba(20,20,20,0.48); z-index: 20; display: none; align-items: flex-end; justify-content: center; }
+  .overlay.open { display: flex; }
+  .sheet { width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; background: var(--card); border-radius: 32px 32px 0 0; padding: 24px 16px calc(env(safe-area-inset-bottom) + 24px); animation: up 240ms ease-out; }
+  @keyframes up { from { transform: translateY(48px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .sheet-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .close { width: 40px; height: 40px; border-radius: 12px; background: var(--bg); display: grid; place-items: center; flex: none; }
+  .label { margin: 24px 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { height: 40px; padding: 0 16px; border-radius: 12px; background: var(--bg); font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+  .chip.on { background: var(--ink); color: #FFFFFF; }
+  .chip i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+  .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .day-chip { flex: none; width: 64px; height: 64px; border-radius: 16px; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .day-chip b { font-size: 20px; line-height: 28px; }
+  .day-chip span { font-size: 12px; line-height: 16px; }
+  .day-chip.on { background: var(--ink); color: #FFFFFF; }
+  .day-chip { position: relative; }
+  .day-chip.has::after { content: ""; position: absolute; bottom: 4px; left: 50%; margin-left: -2px; width: 4px; height: 4px; border-radius: 4px; background: currentColor; }
+  .soups { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .soup-btn { min-height: 56px; border-radius: 16px; padding: 8px 12px; text-align: left; font-weight: 500; display: flex; align-items: center; gap: 8px; background: var(--bg); }
+  .soup-btn:active { transform: scale(0.96); }
+  .own-form { display: flex; flex-direction: column; gap: 8px; }
+  .input { height: 48px; border-radius: 16px; border: 2px solid var(--line); background: var(--card); padding: 0 16px; font-size: 16px; }
+  .input:focus { outline: none; border-color: var(--ink); }
+  .remove { margin-top: 24px; color: #C62828; font-weight: 500; padding: 8px 0; }
+
+  /* подарок */
+  .gift-stage { width: 100%; max-width: 440px; margin: auto 16px; background: var(--card); border-radius: 32px; padding: 32px 24px 24px; text-align: center; animation: up 240ms ease-out; align-self: center; }
+  .box { width: 160px; height: 160px; margin: 24px auto; }
+  .shake { animation: shake 1200ms ease-in-out infinite; transform-origin: 50% 90%; }
+  @keyframes shake { 0%, 60%, 100% { transform: rotate(0); } 66% { transform: rotate(-8deg); } 74% { transform: rotate(8deg); } 82% { transform: rotate(-4deg); } 90% { transform: rotate(4deg); } }
+  .pop { animation: pop 400ms cubic-bezier(.3,1.6,.5,1); }
+  @keyframes pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .meme-big { aspect-ratio: 1; margin: 24px 0; }
+  .meme-big img { width: 100%; height: 100%; object-fit: cover; border-radius: 16px; }
+
+  /* мем или факт дня */
+  .treat-img { margin: 24px 0; }
+  .treat-img img { display: block; width: 100%; max-height: 56vh; object-fit: contain; border-radius: 16px; background: var(--bg); }
+  .treat-fact { margin: 24px 0; padding: 24px; border-radius: 24px; background: var(--bg); text-align: left; }
+  .treat-fact .h3 { font-weight: 500; }
+  .treat-link { font-weight: 500; color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 360px) {
+    .display-xl { font-size: 112px; line-height: 112px; }
+    .display-l { font-size: 32px; line-height: 40px; }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+
+  <!-- Сегодня -->
+  <section class="screen active" id="s-today">
+    <div class="today-head">
+      <span class="h3" id="hello">Привет</span>
+      <span class="muted" id="today-date"></span>
+    </div>
+    <div class="today-card" id="today-card">
+      <h1 class="display-l today-phrase" id="phrase"></h1>
+      <button class="bubble" id="bubble" hidden>забери мою мудрость</button>
+      <div class="hero" id="hero"></div>
+      <div class="streak">
+        <span class="display-xl" id="streak-num">0</span>
+        <span class="streak-label" id="streak-label">дней я&nbsp;ел суп!!</span>
+      </div>
+    </div>
+    <div id="eaten-slot"></div>
+    <div id="gift-slot-today"></div>
+    <div id="life-slot-today"></div>
+    <div id="backup-slot-today"></div>
+    <div class="today-actions">
+      <button class="main-btn" id="eat-btn">Съесть ещё супа!</button>
+    </div>
+  </section>
+
+  <!-- Супостат -->
+  <section class="screen" id="s-stats">
+    <h1 class="display-m page-title">Супостат</h1>
+    <div class="stat-grid">
+      <div class="stat wide">
+        <div>
+          <div class="muted">Серия сейчас</div>
+          <div class="num" id="st-streak">0</div>
+          <div class="caption" id="st-streak-cap">дней подряд</div>
+        </div>
+        <div class="record">
+          <div class="muted">Рекорд</div>
+          <div class="h3" id="st-record">0</div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="muted">На этой неделе</div>
+        <div class="num" id="st-week">0</div>
+        <div class="caption" id="st-week-cap">из 7 дней</div>
+      </div>
+      <div class="stat">
+        <div class="muted" id="st-month-label">В этом месяце</div>
+        <div class="num" id="st-month">0</div>
+        <div class="caption" id="st-month-cap">дней с супом</div>
+      </div>
+    </div>
+    <div class="cal">
+      <div class="cal-head">
+        <button class="cal-nav" id="cal-prev" aria-label="Прошлый месяц"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span class="h3" id="cal-title"></span>
+        <button class="cal-nav" id="cal-next" aria-label="Следующий месяц"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+
+  <!-- База супоеда -->
+  <section class="screen" id="s-base">
+    <h1 class="display-m page-title">База супоеда</h1>
+    <p class="muted base-sub">Суп это база</p>
+    <div class="year-nav">
+      <button class="cal-nav" id="year-prev" aria-label="Прошлый год"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <span class="h3" id="year-title"></span>
+      <button class="cal-nav" id="year-next" aria-label="Следующий год"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div id="rating-slot"></div>
+    <h2 class="h3 section-title">Жизни</h2>
+    <div class="lives-box" id="lives-box"></div>
+    <h2 class="h3 section-title">Подарки за&nbsp;серии</h2>
+    <div class="gifts" id="gifts"></div>
+    <h2 class="h3 section-title">Копия данных</h2>
+    <p class="muted" style="margin-bottom:16px">Сохрани копию раз в&nbsp;месяц, чтобы статистика не&nbsp;потерялась</p>
+    <div class="backup">
+      <button class="sec-btn" id="export-btn">Сохранить копию</button>
+      <button class="sec-btn" id="import-btn">Загрузить</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <div class="tabbar-in">
+    <button class="tab active" data-tab="s-today">
+      <svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.06327 2.87392C7.24835 2.74218 7.47817 2.68931 7.70221 2.72692C7.92626 2.76453 8.12621 2.88954 8.25813 3.07449L8.26156 3.07964L8.27013 3.08992L8.29241 3.12421C8.39791 3.2816 8.49463 3.44471 8.58213 3.61278C8.7227 3.88535 8.9387 4.36192 8.9387 4.85735C8.9387 5.35278 8.7227 5.82935 8.58213 6.10192C8.49407 6.27003 8.39678 6.43313 8.2907 6.59049L8.27013 6.62477L8.26327 6.63163L8.2547 6.64706C8.18864 6.74835 8.12798 6.85307 8.07299 6.96077C7.99189 7.10244 7.93674 7.25744 7.91013 7.41849C7.91013 7.48191 7.9547 7.65334 8.07299 7.88991C8.12822 8.00116 8.18945 8.10932 8.25641 8.21391L8.2667 8.22934M8.2667 8.22934C8.39537 8.41689 8.44426 8.64786 8.40263 8.87146C8.361 9.09506 8.23225 9.29296 8.0447 9.42163C7.85715 9.55029 7.62618 9.59919 7.40258 9.55756C7.17898 9.51592 6.98108 9.38717 6.85241 9.19963V9.19448L6.84899 9.19105L6.84213 9.18077L6.81984 9.14648C6.71646 8.9867 6.62203 8.8213 6.53699 8.65106C6.39984 8.37677 6.19241 7.89677 6.19584 7.40306C6.20099 6.91963 6.40841 6.45163 6.54384 6.1842C6.62766 6.01874 6.72037 5.85793 6.82156 5.70249L6.84384 5.6682L6.8507 5.65792L6.85413 5.65449L6.86099 5.64592L6.87299 5.62878C6.94085 5.52704 7.00323 5.42175 7.05984 5.31335C7.14134 5.17233 7.19707 5.01791 7.22441 4.85735C7.19707 4.69678 7.14134 4.54237 7.05984 4.40135C7.00272 4.29233 6.93978 4.18646 6.87127 4.08421L6.8627 4.06878C6.73096 3.88369 6.67638 3.65388 6.71398 3.42984C6.75159 3.2058 6.87832 3.00584 7.06327 2.87392M12.1633 1.15964C12.0716 1.09414 11.9679 1.04737 11.8581 1.022C11.7483 0.996633 11.6345 0.993164 11.5234 1.01179C11.4123 1.03042 11.3059 1.07079 11.2104 1.13057C11.1148 1.19036 11.032 1.26839 10.9667 1.36021L10.9633 1.36535L10.9547 1.37564L10.9324 1.40992C10.8269 1.56732 10.7302 1.73043 10.6427 1.89849C10.5021 2.17107 10.2861 2.64764 10.2861 3.14306C10.2861 3.63849 10.5021 4.11506 10.6427 4.38763C10.7308 4.55574 10.828 4.71885 10.9341 4.8762L10.9547 4.91049L10.9616 4.91735L10.9701 4.93278C11.0362 5.03407 11.0968 5.13879 11.1518 5.24649C11.2329 5.38815 11.2881 5.54316 11.3147 5.7042C11.2902 5.86987 11.2356 6.02964 11.1536 6.17563C11.0978 6.28691 11.036 6.39507 10.9684 6.49963L10.9581 6.51506M10.9581 6.51506C10.8295 6.7026 10.7806 6.93358 10.8222 7.15718C10.8638 7.38078 10.9926 7.57868 11.1801 7.70734C11.3677 7.83601 11.5987 7.88491 11.8222 7.84327C12.0458 7.80164 12.2437 7.67289 12.3724 7.48534V7.4802L12.3758 7.47677L12.3827 7.46649L12.405 7.4322C12.5084 7.27242 12.6028 7.10702 12.6878 6.93677C12.825 6.66249 13.0324 6.18249 13.029 5.68877C13.0238 5.20535 12.8164 4.73735 12.681 4.46992C12.5972 4.30446 12.5045 4.14365 12.4033 3.98821L12.381 3.95392L12.3741 3.94535L12.3707 3.94021L11.6627 4.42878L12.3673 3.94021L12.3621 3.93163L12.3501 3.91449C12.2823 3.81276 12.2199 3.70746 12.1633 3.59906C12.0824 3.45793 12.0272 3.30352 12.0004 3.14306C12.0004 3.08478 12.045 2.92021 12.165 2.68706C12.2221 2.57804 12.2851 2.47218 12.3536 2.36992L12.3621 2.35449C12.4939 2.16941 12.5485 1.9396 12.5108 1.71556C12.4732 1.49151 12.3482 1.29156 12.1633 1.15964M17.3061 2.87392C17.2144 2.80843 17.1107 2.76165 17.0009 2.73629C16.8911 2.71092 16.7774 2.70745 16.6663 2.72608C16.5551 2.74471 16.4487 2.78507 16.3532 2.84485C16.2577 2.90464 16.1749 2.98267 16.1096 3.07449L16.1061 3.07964L16.0976 3.08992L16.0753 3.12421L16.0016 3.23564C15.9433 3.32821 15.8644 3.45849 15.7856 3.61278C15.645 3.88535 15.429 4.36192 15.429 4.85735C15.429 5.35278 15.645 5.82935 15.7856 6.10192C15.8736 6.27003 15.9709 6.43313 16.077 6.59049L16.0976 6.62477L16.1027 6.63163L16.113 6.64706C16.179 6.74835 16.2397 6.85307 16.2947 6.96077C16.3758 7.10244 16.4309 7.25744 16.4576 7.41849C16.4325 7.58426 16.3773 7.74405 16.2947 7.88991C16.2395 8.00116 16.1782 8.10932 16.1113 8.21391L16.101 8.22934M16.101 8.22934C15.9723 8.41689 15.9234 8.64786 15.9651 8.87146C16.0067 9.09506 16.1354 9.29296 16.323 9.42163C16.5105 9.55029 16.7415 9.59919 16.9651 9.55756C17.1887 9.51592 17.3866 9.38717 17.5153 9.19963V9.19448L17.5187 9.19105L17.5256 9.18077L17.5478 9.14648C17.6512 8.9867 17.7457 8.8213 17.8307 8.65106C17.9678 8.37677 18.1753 7.89677 18.1718 7.40306C18.1684 6.91963 17.961 6.45163 17.8238 6.1842C17.74 6.01874 17.6473 5.85793 17.5461 5.70249L17.5238 5.6682L17.517 5.65963L17.5136 5.65449L16.8073 6.14135L17.5118 5.65277L17.505 5.6442L17.4964 5.62706L17.4501 5.55849C17.3993 5.47821 17.3518 5.39585 17.3078 5.31163C17.2265 5.17114 17.1708 5.01732 17.1433 4.85735C17.1433 4.79906 17.1878 4.63449 17.3078 4.40135C17.365 4.29233 17.4279 4.18646 17.4964 4.08421L17.505 4.06878C17.6367 3.88369 17.6913 3.65388 17.6537 3.42984C17.6161 3.2058 17.4911 3.00584 17.3061 2.87392" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M0 10.4288C0 10.2015 0.0903058 9.98345 0.251051 9.82271C0.411797 9.66196 0.629814 9.57166 0.857143 9.57166H23.1429C23.3702 9.57166 23.5882 9.66196 23.7489 9.82271C23.9097 9.98345 24 10.2015 24 10.4288C24 12.7002 23.1189 14.9939 21.8109 16.9174C20.616 18.6745 19.0234 20.1848 17.3057 21.1208V22.4288C17.3057 22.6561 17.2154 22.8741 17.0547 23.0349C16.8939 23.1956 16.6759 23.2859 16.4486 23.2859H7.608C7.38067 23.2859 7.16265 23.1956 7.00191 23.0349C6.84116 22.8741 6.75086 22.6561 6.75086 22.4288V21.1208C5.03314 20.1848 3.42857 18.6779 2.22 16.9208C0.898286 14.9991 0 12.7037 0 10.4288Z" fill="currentColor"/></svg>
+      Сегодня
+    </button>
+    <button class="tab" data-tab="s-stats">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.96 5.74V23H21V5.74h-5.04ZM8.98 23h5.04V2H8.98v21ZM2 23h5.04V9.48H2V23Z"/></svg>
+      Супостат
+    </button>
+    <button class="tab" data-tab="s-base">
+      <svg viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M11.9998 6.98143H2.79128C3.79143 5.45136 5.15713 4.19465 6.76491 3.32491C8.3727 2.45517 10.1719 1.99981 11.9998 2C13.8278 1.99981 15.627 2.45517 17.2348 3.32491C18.8426 4.19465 20.2083 5.45136 21.2084 6.98143H11.9998ZM11.9998 11.9487C11.8901 12.1701 11.7701 12.3861 11.64 12.5961C10.6013 14.2807 8.81771 15.7264 6.02213 15.7264C3.84099 15.7264 2.25385 14.8433 1.16328 13.6207L1.00928 13.44C1.12658 16.2761 2.33569 18.9571 4.38383 20.9224C6.43197 22.8877 9.16055 23.9852 11.9991 23.9854C14.8376 23.9856 17.5664 22.8885 19.6148 20.9235C21.6632 18.9585 22.8727 16.2777 22.9904 13.4416L22.838 13.6191C21.7474 14.8433 20.1587 15.7264 17.9791 15.7264C15.182 15.7264 13.4 14.2807 12.3597 12.5961C12.2296 12.3861 12.1096 12.1701 11.9998 11.9487ZM15.908 17.3906C15.8296 17.3232 15.7387 17.2719 15.6405 17.2397C15.5423 17.2074 15.4387 17.1949 15.3357 17.2028C15.2326 17.2107 15.1321 17.2388 15.04 17.2856C14.9478 17.3324 14.8658 17.3969 14.7986 17.4754C14.4756 17.8452 14.0665 18.1297 13.6074 18.3036C13.4587 18.3423 13.3088 18.367 13.158 18.3774C12.95 18.392 12.7564 18.4886 12.6196 18.646C12.4829 18.8034 12.4143 19.0086 12.4288 19.2166C12.4434 19.4245 12.54 19.6182 12.6974 19.7549C12.8548 19.8917 13.06 19.9603 13.268 19.9457C13.5556 19.9257 13.8402 19.874 14.1166 19.7917C14.8407 19.5267 15.4857 19.0822 15.9913 18.5C16.0588 18.4217 16.1102 18.3309 16.1425 18.2328C16.1749 18.1346 16.1875 18.0311 16.1798 17.928C16.1721 17.825 16.1441 17.7244 16.0974 17.6322C16.0508 17.54 15.9864 17.4579 15.908 17.3906ZM1.24971 9.09029C1.22033 9.11784 1.19909 9.15292 1.18828 9.19171C1.17747 9.2305 1.17752 9.27152 1.18842 9.31029C1.40842 10.3176 1.85942 11.4506 2.62942 12.3117C3.37271 13.1446 4.43656 13.7621 6.02213 13.7621C8.00999 13.7621 9.21528 12.7879 9.96956 11.5653C10.4492 10.7593 10.7743 9.87091 10.9281 8.94571H1.61271C1.54535 8.94416 1.47837 8.95616 1.41574 8.98099C1.35312 9.00583 1.29769 9.04299 1.24971 9.09029ZM14.0301 11.5653C13.5505 10.7593 13.2254 9.87091 13.0716 8.94571H22.3838C22.5536 8.94571 22.6824 9.01486 22.75 9.09029C22.7794 9.11784 22.8006 9.15292 22.8114 9.19171C22.8222 9.2305 22.8222 9.27152 22.8113 9.31029C22.5913 10.3176 22.1403 11.4506 21.3703 12.3117C20.627 13.1446 19.5616 13.7621 17.976 13.7621C15.9897 13.7621 14.7844 12.7879 14.0301 11.5653Z" fill="currentColor"/></svg>
+      База супоеда
+    </button>
+  </div>
+</nav>
+
+<div class="overlay" id="overlay"></div>
+
+<script>
+/* ---------- данные ---------- */
+const CATS = [
+  { id: 'home', name: 'Домашние', color: '#FF7A5C', soups: ['Борщ', 'Щи', 'Солянка', 'Куриный с лапшой', 'Гороховый', 'Рассольник', 'Уха', 'Грибной', 'Окрошка', 'Свекольник'] },
+  { id: 'asia', name: 'Азиатские', color: '#6CD48A', soups: ['Рамен', 'Фо', 'Том ям', 'Мисо', 'Удон', 'Кимчи-суп'] },
+  { id: 'east', name: 'Кавказские и восточные', color: '#5CC8FF', soups: ['Харчо', 'Шурпа', 'Лагман', 'Чечевичный', 'Хаш'] },
+  { id: 'euro', name: 'Европейские', color: '#B79CFF', soups: ['Тыквенный крем-суп', 'Грибной крем-суп', 'Сырный крем-суп', 'Минестроне', 'Луковый', 'Гаспачо'] },
+  { id: 'own', name: 'Свой суп', color: '#E2E2E2', soups: [] }
+];
+const catById = id => CATS.find(c => c.id === id) || CATS[4];
+
+/* Мемы-подарки: сюда потом вставим пути к картинкам, например 'memes/1.jpg' */
+/* Призы за серию дней подряд. Полученные остаются, даже если серия потом прервётся */
+const PRIZES = [
+  { days: 10,  title: 'Суп на заказ',        text: 'Аня варит суп, который ты закажешь' },
+  { days: 20,  title: 'Кафе за супом',       text: 'Идём в кафе за супом. Место выбираешь ты' },
+  { days: 30,  title: 'Термос для супа',     text: 'Термос, чтобы брать суп с собой' },
+  { days: 45,  title: 'Неделя супа от Ани',  text: '7 дней Аня готовит тебе суп дома' },
+  { days: 60,  title: 'Суповой тур',         text: 'Три супа в трёх разных местах за один день' },
+  { days: 75,  title: 'Постер',              text: 'Постер с твоим супо-персонажем' },
+  { days: 90,  title: 'Картина',             text: 'Картина твоего любимого супа. Нарисует Аня' },
+  { days: 120, title: 'Керамика',            text: 'Мастер-класс по керамике: идём вдвоём лепить тарелки для супа' },
+  { days: 150, title: 'Фотосессия с супом',  text: 'Мемная фотосессия с супом: мы вдвоём и огромная кастрюля. Лучшее фото в рамку' },
+  { days: 180, title: 'Суп-вечеринка',       text: 'Вечеринка с друзьями: пять супов и голосование за суп года' },
+  { days: 365, title: 'Поездка за супом',    text: 'Поездка за настоящим супом: харчо в Грузию, фо во Вьетнам или рамен в Японию' }
+];
+
+/* Картинка каждого супа: images/<файл>.png. Свои супы берут картинку категории */
+const SOUP_IMG = {
+  'Борщ': 'home', 'Щи': 'shchi', 'Солянка': 'solyanka', 'Куриный с лапшой': 'chicken', 'Гороховый': 'pea',
+  'Рассольник': 'rassolnik', 'Уха': 'ukha', 'Грибной': 'mushroom', 'Окрошка': 'okroshka', 'Свекольник': 'svekolnik',
+  'Рамен': 'asia', 'Фо': 'pho', 'Том ям': 'tomyum', 'Мисо': 'miso', 'Удон': 'udon', 'Кимчи-суп': 'kimchi',
+  'Харчо': 'kharcho', 'Шурпа': 'east', 'Лагман': 'lagman', 'Чечевичный': 'lentil', 'Хаш': 'khash',
+  'Тыквенный крем-суп': 'euro', 'Грибной крем-суп': 'mushroomcream', 'Сырный крем-суп': 'cheese',
+  'Минестроне': 'minestrone', 'Луковый': 'onion', 'Гаспачо': 'gazpacho'
+};
+const imgOf = (name, cat) => SOUP_IMG[name] || catById(cat).id;
+
+/* Мемы дня: файлы из папки memes. Добавила новые мемы? Допиши имена файлов в эту строку */
+const DAILY_MEMES = ('IMG_8860 IMG_8862 IMG_8863 IMG_8864 IMG_8865 IMG_8866 IMG_8867 IMG_8868 IMG_8869 IMG_8870 ' +
+  'IMG_8871 IMG_8872 IMG_8873 IMG_8874 IMG_8875 IMG_8876 IMG_8877 IMG_8878 IMG_8879 IMG_8880 IMG_8881 IMG_8882 ' +
+  'IMG_8883 IMG_8884 IMG_8885 IMG_8886 IMG_8887 IMG_8888 IMG_8889 IMG_8890 IMG_8891 IMG_8892 IMG_8893 IMG_8894 ' +
+  'IMG_8895 IMG_8896 IMG_8897 IMG_8898 IMG_8899 IMG_8900 IMG_8902 IMG_8903 IMG_8904 IMG_8905 IMG_8906 IMG_8907 ' +
+  'IMG_8908 IMG_8909 IMG_8910 IMG_8911 IMG_8912 IMG_8913 IMG_8914 IMG_8915 IMG_8916 IMG_8917 IMG_8918 IMG_8919 ' +
+  'IMG_8920 IMG_8921 IMG_8922 IMG_8923 IMG_8924 IMG_8925 IMG_8926 IMG_8927 IMG_8928 IMG_8929 IMG_8930 IMG_8931 ' +
+  'IMG_8932 IMG_8933 IMG_8934 IMG_8935 IMG_8936 IMG_8937 IMG_8938 IMG_8939 IMG_8940 IMG_8941 IMG_8942 IMG_8943 ' +
+  'IMG_8944 IMG_8945 IMG_8946 IMG_8947 IMG_8948 IMG_8949 IMG_8950 IMG_8951 IMG_8952 IMG_8953 IMG_8954 IMG_8955 ' +
+  'IMG_8956 IMG_8957 IMG_8958 IMG_8959 IMG_8961 IMG_8962 IMG_8963 IMG_8964 IMG_8965 IMG_8966 IMG_8967 IMG_8968 ' +
+  'IMG_8969 IMG_8970 IMG_8971 IMG_8972 IMG_8973 IMG_8974 IMG_8975 IMG_8976 IMG_8977 IMG_8978 IMG_8979 IMG_8980 ' +
+  'IMG_8981 IMG_8982 IMG_8983 IMG_8984 IMG_8985 IMG_8986 IMG_8987 IMG_8988 IMG_8989 IMG_8990')
+  .split(' ').map(n => `memes/${n}.jpg`);
+
+/* Факты про суп. s: про какой суп факт (если про суп вообще, то null). Даты и названия проверены поиском */
+const FACTS = [
+  { s: 'Борщ', t: 'В 2022 году ЮНЕСКО внесло культуру приготовления украинского борща в список нематериального наследия, которое нуждается в срочной охране' },
+  { s: 'Борщ', t: 'Красный цвет борщу даёт пигмент свёклы бетанин. Он не любит долгого кипения, а кислота помогает его сохранить, поэтому в борщ добавляют уксус или лимонный сок' },
+  { s: 'Борщ', t: 'Советские космонавты ели борщ из тюбиков. Такой тюбик хранится в Национальном музее авиации и космонавтики в Вашингтоне' },
+  { s: 'Борщ', t: 'По одной из версий, борщ назван в честь борщевика: из этого растения когда-то варили похлёбку' },
+  { s: 'Щи', t: 'Старая поговорка: «Щи да каша, пища наша». Щи веками были главным супом на Руси' },
+  { s: 'Щи', t: 'Суточными называют щи, которые после варки сутки томились в тепле. Считалось, что так они становятся вкуснее' },
+  { s: 'Щи', t: 'Кислыми щами в старину называли не только суп, но и шипучий напиток вроде кваса' },
+  { s: 'Щи', t: 'Выражение «попасть как кур во щи» сначала звучало как «попасть как кур в ощип», то есть угодить под ощипывание' },
+  { s: 'Солянка', t: 'Раньше солянку называли селянкой, и в старых кулинарных книгах это слово появляется раньше. Оба названия спорили до начала XX века' },
+  { s: 'Солянка', t: 'Солянка бывает мясная, рыбная и грибная. А «сборной солянкой» в шутку называют любую мешанину из всего подряд' },
+  { s: 'Куриный с лапшой', t: 'Куриный суп называют «еврейским пенициллином»: его издавна дают при простуде' },
+  { s: 'Куриный с лапшой', t: 'В 2000 году американские учёные проверили куриный суп в пробирке: он немного тормозит клетки воспаления. Лечит ли он простуду, пока не доказано, но вреда точно нет' },
+  { s: 'Гороховый', t: 'В Швеции и Финляндии есть традиция есть гороховый суп по четвергам, а на десерт блинчики' },
+  { s: 'Гороховый', t: 'В Нидерландах говорят, что правильный гороховый суп должен быть таким густым, чтобы в нём стояла ложка' },
+  { s: 'Рассольник', t: 'Рассольник назван в честь главного ингредиента: огуречного рассола' },
+  { s: 'Рассольник', t: 'Предком рассольника считают старинную калью, похлёбку на огуречном рассоле' },
+  { s: 'Уха', t: 'Когда-то ухой называли любой навар, даже мясной или куриный. Только рыбной она стала позже' },
+  { s: 'Уха', t: 'Двойная и тройная уха: бульон варят несколько раз, и каждый раз с новой рыбой' },
+  { s: 'Уха', t: 'В басне Крылова «Демьянова уха» хозяин так закормил гостя ухой, что тот сбежал и больше не приходил' },
+  { s: 'Грибной', t: 'Грибы ближе к животным, чем к растениям. В их клеточных стенках есть хитин, как в панцире жука' },
+  { s: 'Грибной', t: 'Латинское название белого гриба Boletus edulis. Второе слово значит «съедобный»' },
+  { s: 'Окрошка', t: 'Слово «окрошка» происходит от глагола «крошить»' },
+  { s: 'Окрошка', t: 'Самая старая окрошка на квасе. Кефир появился позже, а спор «квас или кефир» не закончится никогда' },
+  { s: 'Свекольник', t: 'В Литве розовый холодный свекольник на кефире называют шалтибарщай. В Вильнюсе ему посвящают целый фестиваль розового супа' },
+  { s: 'Свекольник', t: 'Свекольник часто называют холодным борщом. В Литве к нему подают горячую картошку' },
+  { s: 'Рамен', t: 'Лапшу быстрого приготовления придумал Момофуку Андо в 1958 году. А в 1971-м он же придумал лапшу в стаканчике' },
+  { s: 'Рамен', t: 'Яйцо в рамене называется аджитама. Его маринуют в соевом соусе и мирине' },
+  { s: 'Рамен', t: 'В Японии рамен едят громко, втягивая лапшу с воздухом. Так она быстрее остывает, и никто не считает это невежливым' },
+  { s: 'Рамен', t: 'В Иокогаме есть целый музей рамена и отдельный музей лапши в стаканчике' },
+  { s: 'Фо', t: 'Фо появился в начале XX века на севере Вьетнама, в провинции Намдинь и в Ханое' },
+  { s: 'Фо', t: 'По одной из версий, название фо связано с французским супом pot-au-feu. Историки до сих пор спорят' },
+  { s: 'Том ям', t: 'В 2024 году ЮНЕСКО внесло том ям кунг в список нематериального культурного наследия человечества' },
+  { s: 'Том ям', t: '«Кунг» в названии том ям кунг значит «креветка»' },
+  { s: 'Мисо', t: 'Мисо делают из соевых бобов, соли и плесневого гриба кодзи. Паста бродит от нескольких месяцев до нескольких лет' },
+  { s: 'Мисо', t: 'Мисо кладут в самом конце и не кипятят: от кипения пропадает аромат' },
+  { s: 'Мисо', t: 'В Японии мисо-суп часто едят на завтрак' },
+  { s: 'Удон', t: 'Японскую префектуру Кагава называют префектурой удона. Там есть удон-такси: водитель возит по лучшим лапшичным, а на крыше вместо шашечки миска' },
+  { s: 'Удон', t: 'Удон самая толстая японская лапша. Её делают всего из трёх продуктов: муки, воды и соли' },
+  { s: 'Кимчи-суп', t: 'В 2013 году ЮНЕСКО внесло в список наследия кимджанг, традицию заготавливать кимчи на зиму всей семьёй' },
+  { s: 'Кимчи-суп', t: 'В Корее, когда фотографируются, вместо «сыр» говорят «кимчи»' },
+  { s: 'Харчо', t: 'Полное грузинское название харчо значит «харчо из говядины». Поэтому строгие повара варят его только на говядине' },
+  { s: 'Харчо', t: 'Настоящее харчо заправляют ткемали, кислым соусом из алычи' },
+  { s: 'Шурпа', t: 'У шурпы много родственников: турецкая и балканская чорба, шорпа. Это всё вариации одного слова' },
+  { s: 'Лагман', t: 'Лапшу для лагмана тянут руками, без скалки, пока она не станет длинной и тонкой' },
+  { s: 'Лагман', t: 'Название лагмана связывают с китайским «ламянь», что значит «тянутая лапша»' },
+  { s: 'Чечевичный', t: 'Линза названа в честь чечевицы: по-латыни чечевица lens, а линза похожа на её зёрнышко' },
+  { s: 'Чечевичный', t: 'По библейской истории Исав продал брату право первородства за миску чечевичной похлёбки' },
+  { s: 'Хаш', t: 'Хаш варят из говяжьих ножек много часов, часто всю ночь, а едят рано утром' },
+  { s: 'Хаш', t: 'К хашу подают сухой лаваш, который крошат прямо в тарелку' },
+  { s: 'Тыквенный крем-суп', t: 'С точки зрения ботаники тыква это ягода' },
+  { s: 'Тыквенный крем-суп', t: 'Первые фонари на Хэллоуин в Ирландии вырезали не из тыквы, а из репы' },
+  { s: 'Тыквенный крем-суп', t: 'Оранжевый цвет тыкве даёт бета-каротин, тот же, что и моркови' },
+  { s: 'Грибной крем-суп', t: 'Грибной крем-суп в банке Campbell\'s выпускает с 1934 года. В Америке его часто льют прямо в запеканки вместо соуса' },
+  { s: 'Сырный крем-суп', t: 'Плавленый сыр придумали в Швейцарии в 1911 году. Без него не было бы сырного супа из плавленых сырков' },
+  { s: 'Минестроне', t: 'Минестроне значит «большой суп»: итальянское minestra, суп, плюс увеличительное окончание' },
+  { s: 'Минестроне', t: 'У минестроне нет единого рецепта: в него кладут те овощи, что есть в сезоне' },
+  { s: 'Луковый', t: 'Луковым супом славился старый парижский рынок Ле-Аль: им по ночам отогревались грузчики, торговцы и гуляки' },
+  { s: 'Луковый', t: 'От лука плачут из-за летучего вещества, которое выделяется при резке и раздражает глаза' },
+  { s: 'Гаспачо', t: 'До открытия Америки в Европе не было помидоров, поэтому первый гаспачо был без них: хлеб, оливковое масло, чеснок, уксус и вода' },
+  { s: 'Гаспачо', t: 'Родина гаспачо Андалусия. Там его часто пьют прямо из стакана' },
+  { s: null, t: 'Слово «ресторан» родом из супа: в Париже XVIII века restaurant называли крепкий бульон, который восстанавливает силы' },
+  { s: null, t: 'Самой древней керамике около 20 тысяч лет. Её нашли в китайской пещере Сяньжэньдун, на черепках следы копоти: похоже, в ней варили еду' },
+  { s: null, t: 'Суп в банке придумал химик Джон Дорранс в 1897 году: он стал выпаривать из супа воду, чтобы банки стали легче и дешевле' },
+  { s: null, t: 'В 1962 году Энди Уорхол показал 32 картины с банками супа Campbell\'s, по одной на каждый вкус' },
+  { s: null, t: 'Венгерский гуляш изначально суп пастухов: по-венгерски gulyás и значит «пастух»' },
+  { s: null, t: 'В 1980 году повара Марселя написали хартию буйабеса: в настоящем буйабесе должно быть минимум четыре вида местной рыбы' },
+  { s: null, t: 'В Польше суп журек часто подают прямо в буханке хлеба' },
+  { s: null, t: 'В Корее на день рождения едят суп из водорослей миёккук' },
+  { s: null, t: 'В Японии на Новый год едят суп одзони с рисовыми лепёшками моти' },
+  { s: null, t: 'Китайский суп из ласточкиных гнёзд на самом деле варят из гнёзд стрижей-салаганов, которые те склеивают слюной' },
+  { s: null, t: 'Есть старая европейская сказка «Суп из камня»: путник варит суп из камня и уговаривает соседей добавить «чуть-чуть» продуктов. В русской версии это «Каша из топора»' },
+  { s: null, t: 'Тюря это хлеб, накрошенный в квас с луком. Простой холодный суп, который ели в жару' },
+  { s: null, t: 'Ботвинья это старинный холодный суп на квасе с ботвой свёклы и красной рыбой' },
+  { s: null, t: 'Серия книг «Куриный бульон для души» с историями для поддержки выходит с 1993 года' },
+  { s: null, t: 'Слово «суп» пришло в русский из западных языков, от французского soupe. Раньше говорили «похлёбка», «варево» и, конечно, «щи»' },
+  { s: null, t: 'На юге Китая суп часто подают в конце обеда, а не в начале' },
+  { s: null, t: 'В космосе суп едят из тюбиков и пакетов: в невесомости из тарелки он бы просто уплыл' },
+  { s: null, t: 'Говорят «хлебать щи лаптем», когда хотят сказать, что человек живёт просто и без затей' }
+];
+
+/* имена с большой буквы, ласковые с маленькой: так они и встают в середину фразы */
+const NICKS = ['буня', 'лапуля', 'сладенький', 'Кирюшок', 'Кирилл', 'дуду', 'бибизян', 'лапу'];
+/* в приветствии: «Привет, Бунь» */
+const HELLO = { 'буня': 'Бунь' };
+
+const PHRASES = {
+  /* до супа */
+  notYet: [
+    'Э. Ты что, забыл про супик?',
+    'Раз в сутки супчик должен быть в желудке. Это закон',
+    'Сигма ест суп каждый день. Ты сигма?',
+    'Ержан, вставай. Ты суп не съел',
+    'Хьюстон, у нас проблема. Суп не съеден',
+    'Шо, опять без супа?',
+    'Ты не ты, когда без супа',
+    'Вот это поворот. Суп не съеден',
+    'Ой, всё. Иди за супом',
+    'Слабоумие и отвага: прожить день без супа',
+    'Суп не ждун',
+    'Окей, сухомятка',
+    'Ты кто такой без супа? Давай, иди ешь',
+    'Всё идёт по плану? Не идёт. Суп не съеден',
+    'Остановите Землю, я схожу за супом',
+    'Бро думает, что выживет без супа',
+    'Без супа ты NPC',
+    'Суп скинул тебе голосовое на 4 минуты',
+    'Wake up, babe, суп остывает',
+    'Желудок поставил дизлайк',
+    'Говорят, без супа отрастают усы скуфа',
+    'Отношения с супом: всё сложно',
+    'Кринж: день без супа'
+  ],
+  /* вчера пропустил, но сгорела жизнь и серия жива */
+  saved: [
+    'Вчера ушла жизнь. Серия жива, но не наглей',
+    'Минус жизнь. Ты как кот, только с супом'
+  ],
+  /* вчера пропустил */
+  broken: [
+    'Я календарь перевернул, а суп всё не съеден'
+  ],
+  /* после супа */
+  done: [
+    'Засчитано! Ты ешь так много супа, я в шоке',
+    'Фух, ты не утомился есть этот суп?',
+    'Бро, ты лакомишься этим супчиком... Тебе реально нравится',
+    'Засчитано, {n}. Горжусь тобой',
+    'Суп это база',
+    'Я в своём супоедении настолько преисполнился',
+    'Ничего не понял, но очень вкусно',
+    'Ну, за суп',
+    'Мой идеальный маленький супоед',
+    'Тун-тун-тун супчик',
+    'Слэй. Тарелка пустая',
+    'Энергия главного героя: суп внутри',
+    'Сегодня ты не NPC',
+    'Rizz +100',
+    'Бро съел суп и думает, что он легенда. Он легенда',
+    'Желудок поставил лайк',
+    'Live, laugh, суп',
+    'Суп одобрен Шлёпой',
+    'Белый друг ждёт тебя к 9 утра'
+  ],
+  /* серия от 7 дней */
+  long: [
+    'Они что-то добавляют тебе в суп, чтобы он был в желудке раз в сутки',
+    '{S} подряд. {N}, ты легенда'
+  ],
+  /* география: по категории съеденного супа */
+  cat: {
+    home: ['Бабушка лайкнула это в одноклассниках'],
+    asia: ['Я Наруто, хаваю этот суп. Даттебайо!', 'Японский дедушка в Осаке одобрительно кивнул'],
+    east: ['Кавказский пленник. В плену у супа', 'Грузинская бабушка уже накрывает второй стол', 'Тост был длиннее твоего скролла в тиктоке'],
+    euro: ['Old money вайб', 'Француз в берете уронил багет от зависти'],
+    own: ['Хз, чё ты там ел, но засчитано']
+  },
+  /* на конкретные супы */
+  special: {
+    'Щи': ['Пэээтрик, капусточка!'],
+    'Харчо': ['Харчо? Интересное настроение'],
+    'Том ям': ['Том ням-ням'],
+    'Рамен': ['Ты что, ел рамен без меня?'],
+    'Фо': ['Фо без меня? Я запомню'],
+    'Окрошка': ['Это был салат с кризисом идентичности'],
+    'Гаспачо': ['Это не суп, это другое'],
+    'Луковый': ['Лук-пук'],
+    'Гороховый': ['Патрик, ты перде...'],
+    'Хаш': ['Хоть бы в конце было браун...']
+  }
+};
+
+const KEY = 'supchik-v1';
+let state = load();
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && s.log) return Object.assign({ custom: [], opened: [], recent: [], treats: {}, seenM: [], seenF: [], claimed: {}, saves: {} }, s);
+  } catch (e) {}
+  return { log: {}, custom: [], opened: [], recent: [], treats: {}, seenM: [], seenF: [], claimed: {}, saves: {} };
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+/* ---------- даты ---------- */
+const pad = n => String(n).padStart(2, '0');
+const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+const WD_FULL = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+
+function plural(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+const daysWord = n => plural(n, 'день', 'дня', 'дней');
+
+/* неразрывный пробел после коротких слов, чтобы они не висели в конце строки */
+const SHORT = 'в|и|с|к|у|о|а|я|на|по|за|от|до|из|не|но|для|ты|же|ли|бы|ни|во|со|об|это|что|без|при|раз';
+function nb(t) {
+  /* смотрим назад без захвата, поэтому работает и для нескольких коротких слов подряд: «я в шоке» */
+  return t.replace(new RegExp(`(?<=^|[\\s\\u00A0])(${SHORT}) `, 'gi'), '$1\u00A0');
+}
+/* осветлить цвет к белому: для градиента карточки */
+function tint(hex, k) {
+  const n = parseInt(hex.slice(1), 16), ch = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v + (255 - v) * k));
+  return '#' + ch.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+/* сердечко жизни: 3D-персонаж, пустое серое */
+const heart = full => `<img class="heart${full ? '' : ' empty'}" src="images/heart.png" alt="">`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- подсчёты ---------- */
+/* ---------- серии и жизни ----------
+   На каждом 10-м дне супа подряд появляется жизнь. Её нужно забрать (кнопка на главном), тогда она лежит в копилке.
+   Если день пропущен и в копилке есть жизнь, приложение спрашивает: потратить жизнь или начать серию заново.
+   Спасённый день супом не считается, серия просто не прерывается.
+   state.claimed: { дата 10-го дня: дата, когда забрал }; state.saves: { пропущенный день: 'use' | 'skip' }. */
+const LIVE_EVERY = 10;
+function chains() {
+  const keys = Object.keys(state.log).sort();
+  const res = { run: 0, frozen: new Set(), runs: [], milestones: [], used: new Set(), lives: 0, unclaimed: [], pending: null };
+  if (!keys.length) return res;
+  const claimed = state.claimed || {};
+  const t = today(), tk = keyOf(t);
+  const mark = k => { res.run++; if (res.run % LIVE_EVERY === 0) res.milestones.push(k); };
+  for (let d = fromKey(keys[0]); d < t; d = addDays(d, 1)) {
+    const k = keyOf(d);
+    if (state.log[k]) { mark(k); continue; }
+    /* пропуск: собираем все пропущенные дни подряд до следующего супа (или до сегодня) */
+    const gap = [];
+    for (let g = d; g < t && !state.log[keyOf(g)]; g = addDays(g, 1)) gap.push(keyOf(g));
+    const free = res.milestones.filter(m => claimed[m] && !res.used.has(m));
+    const canSave = free.length >= gap.length;
+    const choice = (state.saves || {})[gap[0]];
+    const recent = gap[gap.length - 1] === keyOf(addDays(t, -1));   /* спрашиваем только про пропуск, который закончился вчера */
+    if (res.run > 0 && choice === 'use' && canSave) {
+      free.slice(0, gap.length).forEach(m => res.used.add(m));
+      gap.forEach(x => res.frozen.add(x));
+    } else if (res.run > 0 && !choice && recent) {
+      /* ещё не решил: показываем серию как есть и спрашиваем (спасти жизнью, «я вообще-то ел» или начать заново) */
+      if (canSave) { free.slice(0, gap.length).forEach(m => res.used.add(m)); gap.forEach(x => res.frozen.add(x)); }
+      res.pending = { day: gap[0], days: gap.length, run: res.run, canSave, lives: free.length };
+    } else { if (res.run) res.runs.push(res.run); res.run = 0; }
+    d = addDays(fromKey(gap[gap.length - 1]), 0);
+  }
+  if (state.log[tk]) mark(tk);
+  if (res.run) res.runs.push(res.run);
+  res.lives = res.milestones.filter(m => claimed[m] && !res.used.has(m)).length;
+  res.unclaimed = res.milestones.filter(m => !claimed[m]);
+  return res;
+}
+const currentStreak = () => chains().run;
+const allStreaks = () => chains().runs;
+const recordStreak = () => Math.max(0, ...allStreaks());
+const giftsEarned = () => PRIZES.filter(p => recordStreak() >= p.days).length;
+const pendingGift = () => { for (let i = 1; i <= giftsEarned(); i++) if (!state.opened.includes(i)) return i; return 0; };
+function daysSinceLast() {
+  const keys = Object.keys(state.log).sort();
+  if (!keys.length) return null;
+  return Math.round((today() - fromKey(keys[keys.length - 1])) / 86400000);
+}
+
+/* ---------- случайное, но стабильное в течение дня ---------- */
+function seeded(seedStr) {
+  let h = 0; for (const c of seedStr) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return () => { h = (h * 1103515245 + 12345) >>> 0; return h / 4294967296; };
+}
+let rnd = seeded(keyOf(today()));
+const pick = arr => arr[Math.floor(rnd() * arr.length)];
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+let nickToday = pick(NICKS);
+function fill(t, s) {
+  return t.replace('{N}', cap(nickToday)).replace('{n}', nickToday).replace('{S}', `${s} ${daysWord(s)}`);
+}
+let phraseCache = null;
+
+function choosePhrase() {
+  const t = keyOf(today());
+  const entry = state.log[t];
+  const s = currentStreak();
+  if (entry) {
+    if (PHRASES.special[entry.name] && rnd() < 0.6) return pick(PHRASES.special[entry.name]);
+    if (s >= 7 && rnd() < 0.3) return pick(PHRASES.long);
+    if (PHRASES.cat[entry.cat] && rnd() < 0.4) return pick(PHRASES.cat[entry.cat]);
+    return pick(PHRASES.done);
+  }
+  { const c = chains(); if (c.frozen.has(keyOf(addDays(today(), -1))) && !c.pending) return pick(PHRASES.saved); }
+  const since = daysSinceLast();
+  if (since !== null && since >= 3) return `${since}-й день без супа. Мне начинать переживать?`;
+  if (since === 2 && recordStreak() >= 2) return pick(PHRASES.broken);
+  return pick(PHRASES.notYet);
+}
+
+/* ---------- персонаж-заглушка (потом заменим на 3D-картинки) ---------- */
+/* картинки персонажей: images/<категория>.png. Если файла нет, рисуется простая тарелка */
+const IMG = id => `images/${id}.png`;
+function fallbackBowl(img) { const box = img.parentNode; box.innerHTML = BOWL_SVG; }
+function bowl(catId, size = 64, name = '') {
+  const c = catById(catId);
+  return `<div class="char char-${size}" style="background:${c.color}"><img src="${IMG(imgOf(name, c.id))}" alt="" onerror="fallbackBowl(this)"></div>`;
+}
+const BOWL_SVG = `
+    <svg viewBox="0 0 64 64" fill="none">
+      <path d="M8 30h48a24 24 0 0 1-48 0z" fill="#FFFFFF" stroke="#141414" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="32" cy="30" rx="24" ry="4" fill="#141414"/>
+      <circle cx="24" cy="42" r="4" fill="#141414"/><circle cx="40" cy="42" r="4" fill="#141414"/>
+      <circle cx="25" cy="41" r="1.5" fill="#FFFFFF"/><circle cx="41" cy="41" r="1.5" fill="#FFFFFF"/>
+      <path d="M28 48c2 2 6 2 8 0" stroke="#141414" stroke-width="3" stroke-linecap="round"/>
+      <path d="M24 22c0-4 4-4 4-8M36 22c0-4 4-4 4-8" stroke="#141414" stroke-width="3" stroke-linecap="round" opacity=".32"/>
+    </svg>`;
+const BOX = `<svg class="box" viewBox="0 0 160 160" fill="none">
+  <rect x="24" y="64" width="112" height="80" rx="12" fill="#FFD400" stroke="#141414" stroke-width="4"/>
+  <rect x="16" y="44" width="128" height="28" rx="8" fill="#FFD400" stroke="#141414" stroke-width="4"/>
+  <rect x="72" y="44" width="16" height="100" fill="#FF7A5C" stroke="#141414" stroke-width="4"/>
+  <path d="M80 44c-8-20-36-24-36-8 0 8 20 8 36 8zM80 44c8-20 36-24 36-8 0 8-20 8-36 8z" fill="#FF7A5C" stroke="#141414" stroke-width="4" stroke-linejoin="round"/>
+</svg>`;
+
+/* ---------- отрисовка ---------- */
+function renderToday() {
+  const t = today();
+  document.getElementById('hello').textContent = `Привет, ${HELLO[nickToday] || nickToday}`;
+  document.getElementById('today-date').textContent = `${WD[t.getDay()]}, ${t.getDate()} ${MONTHS_GEN[t.getMonth()]}`;
+  if (!phraseCache) phraseCache = fill(choosePhrase(), currentStreak());
+  const ph = document.getElementById('phrase');
+  ph.textContent = nb(phraseCache);
+
+  const s = currentStreak();
+  const sn = document.getElementById('streak-num');
+  sn.textContent = s;
+  sn.classList.toggle('long', s >= 100);
+  document.getElementById('streak-label').textContent = nb(`${daysWord(s)} я ел суп!!`);
+
+  const g = pendingGift();
+  document.getElementById('gift-slot-today').innerHTML = g ? `
+    <button class="gift-card" onclick="openGift(${g})">
+      <img src="${IMG('gift')}" alt="" width="64" height="64" style="flex:none;object-fit:contain">
+      <span><span class="h3" style="display:block">${esc(cap(nickToday))}, у&nbsp;тебя подарок!</span><span class="caption">${nb(`За ${PRIZES[g - 1].days} ${daysWord(PRIZES[g - 1].days)} супа подряд. Открой`)}</span></span>
+    </button>` : '';
+
+  const unclaimed = chains().unclaimed;
+  document.getElementById('life-slot-today').innerHTML = unclaimed.length ? `
+    <button class="life-card" onclick="claimLife()">
+      ${heart(true)}
+      <span style="flex:1"><span style="font-weight:700">${nb('Забрать жизнь')}</span><span class="caption" style="display:block">${nb(`За ${LIVE_EVERY} дней супа подряд${unclaimed.length > 1 ? `. Ждут: ${unclaimed.length}` : ''}`)}</span></span>
+    </button>` : '';
+
+  document.getElementById('backup-slot-today').innerHTML = backupDue() ? `
+    <button class="backup-card" onclick="exportBackup()">
+      <span style="flex:1"><span style="font-weight:700;display:block">${nb('Сохрани копию')}</span><span class="caption">${nb(state.lastBackup ? 'Прошёл месяц с прошлой. Чтобы серия не потерялась' : 'Чтобы серия не потерялась, если что-то случится с телефоном')}</span></span>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+    </button>` : '';
+
+  const entry = state.log[keyOf(t)];
+  const hero = document.getElementById('hero');
+  const heroSrc = entry ? IMG(imgOf(entry.name, entry.cat)) : IMG('empty');
+  if (hero.dataset.src !== heroSrc) {
+    hero.dataset.src = heroSrc;
+    hero.innerHTML = `<img src="${heroSrc}" alt="" onerror="this.remove()">`;
+  }
+  document.getElementById('eaten-slot').innerHTML = entry ? `
+    <div class="eaten">
+      ${bowl(entry.cat, 64, entry.name)}
+      <div style="flex:1"><div class="caption">Сегодня в&nbsp;желудке</div><div class="h3">${esc(nb(entry.name))}</div></div>
+      <button class="link" onclick="openSheet('${keyOf(t)}', true)">Изменить</button>
+    </div>` : '';
+  document.getElementById('eat-btn').style.display = entry ? 'none' : '';
+  const card = document.getElementById('today-card');
+  card.style.background = entry ? `linear-gradient(180deg, ${catById(entry.cat).color} 0%, ${tint(catById(entry.cat).color, 0.52)} 100%)` : '';
+  card.classList.toggle('has-eaten', !!entry);
+  document.getElementById('bubble').hidden = !entry;
+}
+
+let calMonth = (() => { const t = today(); return new Date(t.getFullYear(), t.getMonth(), 1); })();
+function renderStats() {
+  const t = today();
+  const s = currentStreak();
+  document.getElementById('st-streak').textContent = s;
+  document.getElementById('st-streak-cap').textContent = `${daysWord(s)} подряд`;
+  const ch = chains();
+  document.getElementById('st-record').textContent = `${recordStreak()} ${daysWord(recordStreak())}`;
+  const monday = addDays(t, -((t.getDay() + 6) % 7));
+  let w = 0; for (let i = 0; i < 7; i++) if (state.log[keyOf(addDays(monday, i))]) w++;
+  document.getElementById('st-week').textContent = w;
+  const prefix = `${calMonth.getFullYear()}-${pad(calMonth.getMonth() + 1)}`;
+  const m = Object.keys(state.log).filter(k => k.startsWith(prefix)).length;
+  const isCur = calMonth.getFullYear() === t.getFullYear() && calMonth.getMonth() === t.getMonth();
+  document.getElementById('st-month-label').textContent = isCur ? 'В этом месяце' : cap(MONTHS[calMonth.getMonth()]);
+  document.getElementById('st-month').textContent = m;
+  document.getElementById('st-month-cap').textContent = nb(`${daysWord(m)} с супом`);
+
+  document.getElementById('cal-title').textContent = `${cap(MONTHS[calMonth.getMonth()])} ${calMonth.getFullYear()}`;
+  document.getElementById('cal-next').disabled = isCur;
+  const grid = document.getElementById('cal-grid');
+  let html = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map(d => `<div class="cal-wd">${d}</div>`).join('');
+  const offset = (calMonth.getDay() + 6) % 7;
+  for (let i = 0; i < offset; i++) html += '<div></div>';
+  const days = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
+  for (let d = 1; d <= days; d++) {
+    const date = new Date(calMonth.getFullYear(), calMonth.getMonth(), d);
+    const k = keyOf(date), e = state.log[k];
+    const future = date > t;
+    const cls = ['cal-day', future ? 'future' : '', k === keyOf(t) ? 'today' : '', ch.frozen.has(k) ? 'frozen' : ''].join(' ');
+    const style = e ? `style="background:${catById(e.cat).color}"` : '';
+    html += future ? `<div class="${cls}">${d}</div>` : `<button class="${cls}" ${style} onclick="openSheet('${k}', false)" aria-label="${d} ${MONTHS_GEN[date.getMonth()]}${e ? ', ' + esc(e.name) : ''}">${d}</button>`;
+  }
+  grid.innerHTML = html;
+  document.getElementById('legend').innerHTML = CATS.map(c => `<span><i style="background:${c.color}"></i>${c.name}</span>`).join('') + `<span><i style="box-shadow:inset 0 0 0 2px #FF4FA3"></i>${nb('День спасла жизнь')}</span>`;
+}
+
+let baseYear = today().getFullYear();
+function firstYear() {
+  const keys = Object.keys(state.log).sort();
+  return keys.length ? Math.min(Number(keys[0].slice(0, 4)), today().getFullYear()) : today().getFullYear();
+}
+function renderBase() {
+  const year = baseYear;
+  const curYear = today().getFullYear();
+  const isAll = year === 'all';
+  document.getElementById('year-title').textContent = isAll ? 'За всё время' : year === curYear ? `${year}, этот год` : `${year} год`;
+  document.getElementById('year-prev').disabled = !isAll && year <= firstYear();
+  document.getElementById('year-next').disabled = isAll;
+  const counts = {};
+  for (const [k, e] of Object.entries(state.log)) {
+    if (!isAll && !k.startsWith(String(year))) continue;
+    const id = e.name;
+    counts[id] = counts[id] || { name: e.name, cat: e.cat, n: 0 };
+    counts[id].n++;
+  }
+  const list = Object.values(counts).sort((a, b) => b.n - a.n);
+  const slot = document.getElementById('rating-slot');
+  if (!list.length) {
+    slot.innerHTML = (isAll || year === curYear)
+      ? `<div class="empty"><div class="h3">${nb('Пока пусто')}</div><p class="muted">${nb('Первый суп уже ждёт. Отметь его на вкладке «Сегодня»')}</p></div>`
+      : `<div class="empty"><div class="h3">${nb('В этом году супов не было')}</div><p class="muted">${nb('Или ты просто не отмечал. Я не ругаюсь')}</p></div>`;
+  } else {
+    const [top, ...rest] = list;
+    const total = list.reduce((a, r) => a + r.n, 0);
+    slot.innerHTML = `
+      <div class="stat-grid totals">
+        <div class="stat"><div class="muted">${isAll ? 'Всего супов' : 'Супов за год'}</div><div class="num">${total}</div><div class="caption">${plural(total, 'тарелка', 'тарелки', 'тарелок')}</div></div>
+        <div class="stat"><div class="muted">Разных супов</div><div class="num">${list.length}</div><div class="caption">${(() => { const all = CATS.reduce((a, c) => a + c.soups.length, 0), w = plural(list.length, 'вид', 'вида', 'видов'); return list.length <= all ? nb(`${w} из ${all} в списке`) : w; })()}</div></div>
+      </div>
+      <div class="top-soup">
+        ${bowl(top.cat, 128, top.name)}
+        <div><div class="muted">${isAll ? 'Суп всех времён' : year === curYear ? 'Суп года' : 'Суп ' + year + ' года'}</div><div class="h3">${esc(nb(top.name))}</div><div class="num">${top.n}</div><div class="caption">${plural(top.n, 'тарелка', 'тарелки', 'тарелок')}</div></div>
+      </div>
+      ${rest.length ? `<div class="rating">${rest.map(r => `
+        <div class="row">${bowl(r.cat, 40, r.name)}<span class="row-name">${esc(nb(r.name))}</span><span class="row-count">${r.n}</span></div>`).join('')}</div>` : ''}`;
+  }
+
+  const chs = chains();
+  document.getElementById('lives-box').innerHTML = `
+    <div class="lives-head"><div class="lives">${chs.lives ? Array.from({ length: chs.lives }, () => heart(true)).join('') : heart(false)}</div>
+    <div class="h3">${nb(chs.lives ? `${chs.lives} в копилке` : 'Пока пусто')}</div></div>
+    <p class="muted">${nb(`Жизнь даётся за каждые ${LIVE_EVERY} дней супа подряд. Если пропустишь день, можно потратить её и спасти серию`)}</p>`;
+  const earned = giftsEarned();
+  const s = currentStreak();
+  let gh = '';
+  for (let i = 1; i <= PRIZES.length; i++) {
+    const pr = PRIZES[i - 1], dw = `${pr.days} ${daysWord(pr.days)}`;
+    const head = cls => `<span><span class="num${cls}">${pr.days}</span><span class="caption" style="display:block">${daysWord(pr.days)}</span></span>`;
+    if (state.opened.includes(i)) {
+      gh += `<button class="gift-slot opened" onclick="showPrize(${i})"><span class="caption">${dw}</span><span class="t">${esc(nb(pr.title))}</span></button>`;
+    } else if (i <= earned) {
+      gh += `<button class="gift-slot ready" onclick="openGift(${i})">${head('')}<span class="t">Открой!</span></button>`;
+    } else if (i === earned + 1) {
+      const left = pr.days - s;
+      gh += `<div class="gift-slot locked">${head(' muted')}<span class="caption">${nb(`ещё ${left} ${daysWord(left)}`)}</span></div>`;
+    } else {
+      gh += `<div class="gift-slot locked">${head(' muted')}<span class="caption">впереди</span></div>`;
+    }
+  }
+  document.getElementById('gifts').innerHTML = gh;
+}
+
+/* размер тарелки под свободное место: короткая фраза, тарелка крупнее; длинная, мельче */
+function fitHero() {
+  const card = document.getElementById('today-card');
+  if (!card || !card.offsetHeight) return;
+  const ph = document.getElementById('phrase');
+  /* фраза не длиннее трёх строк: берём самый крупный кегль, при котором она влезает */
+  for (const [fs, lh] of [[40, 44], [32, 40], [28, 32], [24, 28]]) {
+    ph.style.fontSize = fs + 'px'; ph.style.lineHeight = lh + 'px';
+    if (ph.offsetHeight <= lh * 3) break;
+  }
+  const eaten = card.classList.contains('has-eaten');
+  const phraseBottom = ph.offsetTop + ph.offsetHeight;
+  let hb = eaten ? 136 : 40;
+  let size;
+  if (eaten) size = (card.offsetHeight - phraseBottom - 16 - 60 - hb) / 0.76;      /* облачко сразу под фразой */
+  else size = (card.offsetHeight - phraseBottom + 24 - hb) / 0.855;              /* край тарелки чуть заходит на фразу */
+  const [min, max] = eaten ? [300, 440] : [360, 460];
+  /* если места больше, чем нужно самой крупной тарелке, чуть поднимаем её вместе с облачком (до 48px) */
+  if (size > max) hb += Math.min(48, Math.round((size - max) * (eaten ? 0.76 : 0.855) / 4) * 4);
+  size = Math.round(Math.min(max, Math.max(min, size)) / 4) * 4;
+  card.style.setProperty('--hs', size + 'px');
+  card.style.setProperty('--hb', hb + 'px');
+}
+window.addEventListener('resize', fitHero);
+if (document.fonts) document.fonts.ready.then(fitHero);
+
+function renderAll() { renderToday(); renderStats(); renderBase(); fitHero(); }
+
+/* ---------- вкладки ---------- */
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === b.dataset.tab));
+  window.scrollTo(0, 0);
+}));
+
+/* ---------- шторка выбора супа ---------- */
+const overlay = document.getElementById('overlay');
+let sheet = { date: null, cat: 'home', pickDay: false };
+function closeOverlay() { overlay.classList.remove('open'); overlay.innerHTML = ''; }
+overlay.addEventListener('click', e => { if (e.target === overlay && !overlay.querySelector('[onclick^="decideLife"]')) closeOverlay(); });
+
+function openSheet(dateKey, pickDay) {
+  sheet = { date: dateKey, cat: sheet.cat || 'home', pickDay };
+  overlay.innerHTML = '';
+  overlay.classList.add('open');
+  renderSheet();
+}
+function allSoupsOf(catId) {
+  const c = catById(catId);
+  return [...c.soups, ...state.custom.filter(x => x.cat === catId).map(x => x.name)];
+}
+function renderSheet() {
+  const prevDays = overlay.querySelector('.days');
+  const keepScroll = prevDays ? prevDays.scrollLeft : null;
+  const t = today();
+  const d = fromKey(sheet.date);
+  const isToday = sheet.date === keyOf(t);
+  const entry = state.log[sheet.date];
+  const title = isToday ? `Какой суп, ${nickToday}?` : `Суп за ${d.getDate()}\u00A0${MONTHS_GEN[d.getMonth()]}`;
+  let days = '';
+  if (sheet.pickDay) {
+    days = '<p class="label muted">Какой день</p><div class="days">';
+    for (let i = 13; i >= 0; i--) {
+      const x = addDays(t, -i), k = keyOf(x);
+      days += `<button class="day-chip ${k === sheet.date ? 'on' : ''} ${state.log[k] ? 'has' : ''}" onclick="sheet.date='${k}';renderSheet()"><b>${x.getDate()}</b><span>${i === 0 ? 'сегодня' : WD[x.getDay()]}</span></button>`;
+    }
+    days += '</div>';
+  }
+  const recent = state.recent.slice(0, 3);
+  const recentHtml = recent.length ? `<p class="label muted">Недавние</p><div class="chips">${recent.map(r =>
+    `<button class="chip" onclick="eat('${esc(r.name).replace(/'/g, "\\'")}','${r.cat}')"><i style="background:${catById(r.cat).color}"></i>${esc(r.name)}</button>`).join('')}</div>` : '';
+  const cats = `<p class="label muted">Направление</p><div class="chips">${CATS.map(c =>
+    `<button class="chip ${c.id === sheet.cat ? 'on' : ''}" onclick="sheet.cat='${c.id}';renderSheet()"><i style="background:${c.color}"></i>${c.name}</button>`).join('')}</div>`;
+  let body;
+  if (sheet.cat === 'own') {
+    const own = state.custom;
+    body = `${own.length ? `<div class="soups" style="margin-bottom:16px">${own.map(x =>
+      `<button class="soup-btn" onclick="eat('${esc(x.name).replace(/'/g, "\\'")}','${x.cat}')">${bowl(x.cat, 40, x.name)}${esc(nb(x.name))}</button>`).join('')}</div>` : ''}
+      <div class="own-form">
+        <input class="input" id="own-name" placeholder="Название супа" maxlength="40">
+        <select class="input" id="own-cat">${CATS.map(c => `<option value="${c.id}" ${c.id === 'own' ? 'selected' : ''}>${c.name}</option>`).join('')}</select>
+        <button class="main-btn" onclick="addOwn()">Добавить и&nbsp;отметить</button>
+      </div>`;
+  } else {
+    body = `<div class="soups">${allSoupsOf(sheet.cat).map(n =>
+      `<button class="soup-btn" onclick="eat('${esc(n).replace(/'/g, "\\'")}','${sheet.cat}')">${bowl(sheet.cat, 40, n)}${esc(nb(n))}</button>`).join('')}</div>`;
+  }
+  overlay.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">
+    <div class="sheet-head"><h2 class="display-m">${nb(title)}</h2>
+      <button class="close" onclick="closeOverlay()" aria-label="Закрыть"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="#141414" stroke-width="2" stroke-linecap="round"/></svg></button></div>
+    ${entry ? `<p class="muted" style="margin-top:8px">${nb('Сейчас отмечен: ' + entry.name)}</p>` : ''}
+    ${days}${recentHtml}${cats}<p class="label muted">Суп</p>${body}
+    ${entry ? `<button class="remove" onclick="removeDay()">${nb('Убрать суп за этот день')}</button>` : ''}
+  </div>`;
+  const days2 = overlay.querySelector('.days');
+  if (days2) days2.scrollLeft = keepScroll !== null ? keepScroll : days2.scrollWidth;
+}
+function eat(name, cat) {
+  const before = giftsEarned();
+  const tKey = keyOf(today());
+  const isToday = sheet.date === tKey, hadTreat = !!state.treats[tKey];
+  state.log[sheet.date] = { name, cat };
+  state.recent = [{ name, cat }, ...state.recent.filter(r => r.name !== name)].slice(0, 3);
+  save();
+  closeOverlay();
+  rnd = seeded(keyOf(today()) + Object.keys(state.log).length + name);
+  phraseCache = sheet.date === keyOf(today()) ? null : phraseCache;
+  renderAll();
+  const hero = document.getElementById('hero');
+  hero.classList.remove('pop'); void hero.offsetWidth; hero.classList.add('pop');
+  const btn = document.getElementById('eaten-slot');
+  btn.classList.remove('bounce'); void btn.offsetWidth; btn.classList.add('bounce');
+  if (giftsEarned() > before) setTimeout(() => openGift(pendingGift()), 600);
+  else if (isToday && !hadTreat) setTimeout(() => showTreat(tKey), 700);
+  if (!isToday) setTimeout(askLife, 500);
+}
+function addOwn() {
+  const name = document.getElementById('own-name').value.trim();
+  const cat = document.getElementById('own-cat').value;
+  if (!name) { document.getElementById('own-name').focus(); return; }
+  if (!state.custom.some(x => x.name.toLowerCase() === name.toLowerCase())) state.custom.push({ name, cat });
+  eat(name, cat);
+}
+function removeDay() {
+  delete state.log[sheet.date];
+  save(); closeOverlay();
+  if (sheet.date === keyOf(today())) phraseCache = null;
+  renderAll();
+}
+
+/* ---------- мем или факт дня ---------- */
+/* выбирается один раз на день и сохраняется; повторов нет, пока не покажется всё */
+function treatFor(k) {
+  if (state.treats[k]) return state.treats[k];
+  const entry = state.log[k];
+  if (!entry) return null;
+  const left = (all, seen) => all.map((_, i) => i).filter(i => !seen.includes(i));
+  const any = a => a[Math.floor(Math.random() * a.length)];
+  let mLeft = left(DAILY_MEMES, state.seenM);
+  if (!mLeft.length) { state.seenM = []; mLeft = left(DAILY_MEMES, []); }
+  let fLeft = left(FACTS, state.seenF);
+  if (!fLeft.length) { state.seenF = []; fLeft = left(FACTS, []); }
+  const about = fLeft.filter(i => FACTS[i].s === entry.name);
+  let t;
+  if (mLeft.length && Math.random() < 0.5) {
+    const i = any(mLeft); state.seenM.push(i);
+    t = { type: 'meme', src: DAILY_MEMES[i] };
+  } else {
+    const i = any(about.length && Math.random() < 0.6 ? about : fLeft); state.seenF.push(i);
+    t = { type: 'fact', text: FACTS[i].t };
+  }
+  state.treats[k] = t;
+  save();
+  return t;
+}
+function memeFailed(k) {
+  const i = FACTS.findIndex((f, j) => !state.seenF.includes(j));
+  const j = i < 0 ? Math.floor(Math.random() * FACTS.length) : i;
+  state.seenF.push(j);
+  state.treats[k] = { type: 'fact', text: FACTS[j].t };
+  save(); closeOverlay(); showTreat(k);
+}
+function showTreat(k) {
+  const t = treatFor(k);
+  if (!t) return;
+  overlay.innerHTML = `<div class="gift-stage pop" role="dialog" aria-modal="true">
+    ${t.type === 'meme'
+      ? `<p class="muted">Мем дня</p><h2 class="display-m">${nb('Надеюсь, поможет...')}</h2>
+         <div class="treat-img"><img src="${t.src}" alt="Мем про суп" onerror="memeFailed('${k}')"></div>
+         <button class="main-btn" onclick="closeOverlay()">Ору</button>`
+      : `<p class="muted">Факт дня</p><h2 class="display-m">${nb('А ты нал?')}</h2>
+         <div class="treat-fact"><p class="h3">${esc(nb(t.text))}</p></div>
+         <button class="main-btn" onclick="closeOverlay()">Теперь знаю</button>`}
+  </div>`;
+  overlay.classList.add('open');
+}
+
+/* ---------- жизнь ---------- */
+function claimLife() {
+  const m = chains().unclaimed[0];
+  if (!m) return;
+  state.claimed = state.claimed || {};
+  state.claimed[m] = keyOf(today());
+  save(); renderAll();
+  const lv = chains().lives;
+  overlay.innerHTML = `<div class="gift-stage pop" role="dialog" aria-modal="true">
+    <p class="muted">${nb(`За ${LIVE_EVERY} дней супа подряд`)}</p>
+    <h2 class="display-m">${nb('+1 жизнь')}</h2>
+    <div class="lives" style="justify-content:center;margin:24px 0">${heart(true).replace('class="heart', 'class="heart big')}</div>
+    <p>${nb('Если пропустишь день, сможешь потратить её, и серия не обнулится')}</p>
+    <p class="muted" style="margin:8px 0 24px">${nb(`В копилке: ${lv}`)}</p>
+    <button class="main-btn" onclick="closeOverlay()">Положить в копилку</button>
+  </div>`;
+  overlay.classList.add('open');
+}
+
+/* спросить про жизнь, если есть пропущенный день и жизнь в копилке */
+function askLife() {
+  const p = chains().pending;
+  if (!p || overlay.classList.contains('open')) return;
+  const d = fromKey(p.day);
+  const when = p.days > 1 ? `С ${d.getDate()} ${MONTHS_GEN[d.getMonth()]} супа не было` : `${d.getDate()} ${MONTHS_GEN[d.getMonth()]} супа не было`;
+  const ask = p.canSave
+    ? (p.days > 1 ? `Пропущено дней: ${p.days}. Потратишь ${p.days} ${plural(p.days, 'жизнь', 'жизни', 'жизней')}?` : 'Используешь жизнь?')
+    : (p.lives ? `Жизней не хватает: нужно ${p.days}, в копилке ${p.lives}` : 'Жизней в копилке нет');
+  overlay.innerHTML = `<div class="gift-stage pop" role="dialog" aria-modal="true">
+    <p class="muted">${nb(when)}</p>
+    <h2 class="display-m">${nb('Кто-то что-то не доел...')}</h2>
+    <div class="lives" style="justify-content:center;margin:24px 0">${heart(p.canSave).replace('class="heart', 'class="heart big')}</div>
+    <p class="h3">${nb(`Стрик из ${p.run} ${daysWord(p.run)} разрушен. ${ask}`)}</p>
+    ${p.canSave ? `<p class="muted" style="margin-top:8px">${nb(`В копилке: ${p.lives}`)}</p>` : ''}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:24px">
+      ${p.canSave ? `<button class="main-btn" onclick="decideLife('${p.day}', 'use')">${nb('Да, спасти серию')}</button>` : ''}
+      <button class="main-btn" style="${p.canSave ? 'background:var(--bg)' : ''}" onclick="iAte('${p.day}')">${nb('Я вообще-то ел')}</button>
+      <button class="link" onclick="decideLife('${p.day}', 'skip')">${nb(p.canSave ? 'Нет, начну заново' : 'Ладно, начну заново')}</button>
+    </div>
+  </div>`;
+  overlay.classList.add('open');
+}
+/* «я вообще-то ел»: открыть выбор супа сразу на пропущенный день */
+function iAte(day) {
+  closeOverlay();
+  openSheet(day, true);
+}
+function decideLife(day, choice) {
+  state.saves = state.saves || {};
+  state.saves[day] = choice;
+  save(); closeOverlay(); phraseCache = null; renderAll();
+  setTimeout(askLife, 300);
+}
+
+/* ---------- подарок ---------- */
+function openGift(i) {
+  overlay.innerHTML = `<div class="gift-stage" role="dialog" aria-modal="true">
+    <p class="muted">${nb('Тебе подарок')}</p>
+    <h2 class="display-m">${nb(`За ${PRIZES[i - 1].days} ${daysWord(PRIZES[i - 1].days)} супа подряд`)}</h2>
+    <div class="shake" id="box-wrap"><img class="box" src="${IMG('gift')}" alt="" style="object-fit:contain" onerror="this.outerHTML=BOX"></div>
+    <button class="main-btn" id="open-box">Открыть</button>
+  </div>`;
+  overlay.classList.add('open');
+  document.getElementById('open-box').onclick = () => {
+    if (!state.opened.includes(i)) state.opened.push(i);
+    save(); renderAll(); showPrize(i);
+  };
+}
+function showPrize(i) {
+  const pr = PRIZES[i - 1];
+  overlay.innerHTML = `<div class="gift-stage pop" role="dialog" aria-modal="true">
+    <p class="muted">${nb(`Подарок за ${pr.days} ${daysWord(pr.days)} подряд`)}</p>
+    <h2 class="display-m">${nb(`Это тебе, ${nickToday}`)}</h2>
+    <div class="coupon"><span class="caption">Купон</span><p class="display-m">${esc(nb(pr.text))}</p><span class="caption">${nb('Покажи Ане, чтобы получить')}</span></div>
+    <button class="main-btn" onclick="closeOverlay()">Забрать</button>
+    ${state.lastBackup !== keyOf(today()) ? `<button class="link" style="margin-top:8px" onclick="exportBackup()">${nb('Такую серию жалко потерять. Сохранить копию')}</button>` : ''}
+  </div>`;
+  overlay.classList.add('open');
+}
+
+/* ---------- кнопки ---------- */
+document.getElementById('eat-btn').addEventListener('click', e => {
+  e.currentTarget.classList.remove('bounce'); void e.currentTarget.offsetWidth; e.currentTarget.classList.add('bounce');
+  setTimeout(() => openSheet(keyOf(today()), true), 160);
+});
+document.getElementById('bubble').addEventListener('click', () => showTreat(keyOf(today())));
+document.getElementById('hero').addEventListener('click', () => { if (state.log[keyOf(today())]) showTreat(keyOf(today())); });
+/* после текущего года идёт «За всё время» */
+document.getElementById('year-prev').addEventListener('click', () => { baseYear = baseYear === 'all' ? today().getFullYear() : baseYear - 1; renderBase(); });
+document.getElementById('year-next').addEventListener('click', () => { baseYear = baseYear === today().getFullYear() ? 'all' : baseYear + 1; renderBase(); });
+document.getElementById('cal-prev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderStats(); });
+document.getElementById('cal-next').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderStats(); });
+
+/* ---------- копия данных ---------- */
+/* копия данных: открывает меню «Поделиться» (Файлы, Телеграм...). Дату копии запоминаем, только если он реально сохранил */
+async function exportBackup() {
+  const stamp = () => { state.lastBackup = keyOf(today()); save(); renderToday(); };
+  const data = Object.assign({}, state, { lastBackup: keyOf(today()) });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const name = `supchik-${keyOf(today())}.json`;
+  const file = new File([blob], name, { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'Копия Супчика' }); stamp(); return true; }
+    catch (e) { if (e.name === 'AbortError') return false; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  stamp(); return true;
+}
+/* напоминание: раз в 30 дней с последней копии (или с первого супа). Висит, пока не сохранит */
+const BACKUP_EVERY = 30;
+function backupDue() {
+  const keys = Object.keys(state.log).sort();
+  if (!keys.length) return false;
+  const from = state.lastBackup || keys[0];
+  return Math.round((today() - fromKey(from)) / 86400000) >= BACKUP_EVERY;
+}
+document.getElementById('export-btn').addEventListener('click', exportBackup);
+document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!data.log) throw new Error();
+    if (!confirm('Заменить текущие данные копией?')) return;
+    state = Object.assign({ custom: [], opened: [], recent: [], treats: {}, seenM: [], seenF: [], claimed: {}, saves: {} }, data);
+    save(); phraseCache = null; renderAll();
+    alert('Готово, всё на месте');
+  } catch (err) { alert('Это не похоже на копию Супчика'); }
+  e.target.value = '';
+});
+
+/* новый день: если приложение висело открытым со вчера */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { rnd = seeded(keyOf(today())); nickToday = pick(NICKS); phraseCache = null; renderAll(); setTimeout(askLife, 300); }
+});
+
+renderAll();
+setTimeout(askLife, 600);
+
+/* просим браузер не чистить данные приложения при нехватке места */
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+/* офлайн: сервис-воркер сохраняет приложение в телефоне и тихо докачивает все картинки и мемы */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(reg => {
+    /* докачиваем через 15 секунд, чтобы не мешать первой загрузке на медленном интернете */
+    const imgs = [...new Set([...Object.values(SOUP_IMG), ...CATS.map(c => c.id), 'empty', 'gift', 'heart'])].map(IMG);
+    setTimeout(() => reg.active && reg.active.postMessage({ type: 'warm', urls: [...imgs, ...DAILY_MEMES] }), 15000);
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>
