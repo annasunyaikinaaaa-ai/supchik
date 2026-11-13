@@ -3,7 +3,7 @@
    - Картинки, мемы, шрифты: сначала из кэша, если нет, из сети с сохранением.
    - После загрузки страница присылает список всех картинок и мемов, и они тихо докачиваются в кэш.
    Если поменяли картинки, увеличьте номер версии, чтобы старый кэш очистился. */
-const VERSION = 'supchik-v4';
+const VERSION = 'supchik-v5';
 const CORE = ['./', 'index.html', 'manifest.json', 'icon-180.png', 'icon-512.png', 'fonts/fonts.css', 'images/empty.png'];
 
 self.addEventListener('install', e => {
